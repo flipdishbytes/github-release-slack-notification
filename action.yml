@@ -66,25 +66,25 @@ runs:
     #   echo "GH_RELEASE_NOTES=$GH_RELEASE_NOTES" >> $GITHUB_ENV
     #   shell: bash
 
-      - name: Sending Slack notification
-        shell: pwsh
-        run: |
-          $messageTextVersion = $env:Version
-          $messageTextDone = "Changelog: $env:GH_RELEASE_NOTES"
-          $channel = $env:SlackChannel
-          $slack_webhook_url_secret = $env:SlackWebhookUrl
+    - name: Sending Slack notification
+      shell: pwsh
+      run: |
+        $messageTextVersion = $env:Version
+        $messageTextDone = "Changelog: $env:GH_RELEASE_NOTES"
+        $channel = $env:SlackChannel
+        $slack_webhook_url_secret = $env:SlackWebhookUrl
 
-          New-SlackMessageAttachment -Color '#008000' `
+        New-SlackMessageAttachment -Color '#008000' `
               -Title "$env:ProjectName ($messageTextVersion) - Successfuly Released" `
               -TitleLink "$env:pipelineUrl" `
               -Text "$messageTextDone" `
               -Fallback "Release completed" | New-SlackMessage -Channel $channel | Send-SlackMessage -Uri $slack_webhook_url_secret
-        env: 
-          SlackWebhookUrl: ${{ steps.slack_webhook_url.outputs.webhook_url }}
-          SlackChannel: 'test-alerts'
-          ProjectName: ${{ inputs.projectName }}
-          pipelineUrl: ${{ github.run_url }}
-          Version: ${{ steps.release_version.outputs.version }}
+      env: 
+        SlackWebhookUrl: ${{ steps.slack_webhook_url.outputs.webhook_url }}
+        SlackChannel: 'test-alerts'
+        ProjectName: ${{ inputs.projectName }}
+        pipelineUrl: ${{ github.run_url }}
+        Version: ${{ steps.release_version.outputs.version }}
 
     # - name: Sending Slack notification
     #   run: |
