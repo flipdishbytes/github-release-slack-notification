@@ -21,6 +21,12 @@ runs:
       id: release_version
       shell: pwsh
       run: |
+        if (Get-Module -ListAvailable -Name PowerShellForGitHub) {
+          Write-Host "PowerShellForGitHub module already Installed"
+          } else {
+          Write-Host "Installing PowerShellForGitHub module"
+          Install-Module -Name PowerShellForGitHub -Force
+        }
         $branchName = $env:BranchName
         $shortHash = "$env:SHA".Substring(0, 7)
         $dateTime = Get-Date -Format "yyyy.MM.dd" 
