@@ -18,7 +18,7 @@ runs:
   using: "composite"
   steps:
     - name: Set version name
-      id: set_version
+      id: release_version
       shell: pwsh
       run: |
         $branchName = $env:BranchName
@@ -36,8 +36,8 @@ runs:
     - name: GitHub Release
       uses: ncipollo/release-action@v1
       with:
-        tag: ${{ steps.set_version.outputs.version }}
-        name: Release ${{ steps.set_version.outputs.version }}
+        tag: ${{ steps.release_version.outputs.version }}
+        name: Release ${{ steps.release_version.outputs.version }}
         commit: ${{ github.sha }}
         draft: false
         prerelease: false
@@ -54,9 +54,10 @@ runs:
         unset-current-credentials: true
     
     - name: Read Slack Webhook URL AWS Secret value
+      id: slack_webhook_url
       run: |
         SLACK_WEBHOOK_URL=$(aws secretsmanager get-secret-value --secret-id arn:aws:secretsmanager:eu-west-1:865076270365:secret:SlackGithubActionsWebhookURL-vZcXfi --query SecretString --output text)
-        echo "SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL" >> $GITHUB_OUTPUT
+        echo "webhook_url=$SLACK_WEBHOOK_URL" >> $GITHUB_OUTPUT
       shell: bash
   
     # - name: Read GitHub Release Changelog via GH CLI
@@ -64,6 +65,26 @@ runs:
     #   GH_RELEASE_NOTES=$(gh release view ${{ github.event.release.tag_name }} --json body --repo ${{ inputs.repositoryName }} --jq '.body')
     #   echo "GH_RELEASE_NOTES=$GH_RELEASE_NOTES" >> $GITHUB_ENV
     #   shell: bash
+
+      - name: Sending Slack notification
+        shell: pwsh
+        run: |
+          $messageTextVersion = $env:Version
+          $messageTextDone = "Changelog: $env:GH_RELEASE_NOTES"
+          $channel = $env:SlackChannel
+          $slack_webhook_url_secret = $env:SlackWebhookUrl
+
+          New-SlackMessageAttachment -Color '#008000' `
+              -Title "$env:ProjectName ($messageTextVersion) - Successfuly Released" `
+              -TitleLink "$env:pipelineUrl" `
+              -Text "$messageTextDone" `
+              -Fallback "Release completed" | New-SlackMessage -Channel $channel | Send-SlackMessage -Uri $slack_webhook_url_secret
+        env: 
+          SlackWebhookUrl: ${{ steps.slack_webhook_url.outputs.webhook_url }}
+          SlackChannel: 'test-alerts'
+          ProjectName: ${{ inputs.projectName }}
+          pipelineUrl: ${{ github.run_url }}
+          Version: ${{ steps.release_version.outputs.version }}
 
     # - name: Sending Slack notification
     #   run: |
