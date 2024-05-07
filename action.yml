@@ -69,11 +69,11 @@ runs:
     - name: Sending Slack notification
       shell: pwsh
       run: |
-        if (Get-Module -ListAvailable -Name PowerShellForGitHub) {
-          Write-Host "PowerShellForGitHub module already Installed"
-          } else {
-          Write-Host "Installing PowerShellForGitHub module"
-          Install-Module -Name PowerShellForGitHub -Force
+        if (Get-Module -ListAvailable -Name PSSlack) {
+          Write-Host "PSSlack module already Installed"
+        } else {
+          Write-Host "Installing PSSlack module"
+          Install-Module -Name PSSlack -Force
         }
         $messageTextVersion = $env:Version
         $messageTextDone = "Changelog: $env:GH_RELEASE_NOTES"
