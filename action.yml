@@ -63,6 +63,8 @@ runs:
         GH_RELEASE_NOTES=$(gh release view ${{ github.event.release.tag_name }} --json body --repo ${{ github.github.repository }} --jq '.body')
         echo "GH_RELEASE_NOTES=$GH_RELEASE_NOTES" >> $GITHUB_OUTPUT
       shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
 
     - name: Sending Slack notification
       shell: pwsh
