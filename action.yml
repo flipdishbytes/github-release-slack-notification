@@ -1,9 +1,14 @@
-name: 'Github Release'
-description: 'Creates Github Release'
+name: 'Github Release and Slack Notification'
+description: 'Sends Slack Notification for your GitHub Release with Changelog attached.'
 inputs:
   projectName:
     description: 'Name of the project'
     required: true
+  # COMMAND:
+  #   required: true
+  # repositoryName:
+  #   description: 'Repository name in the format of `owner/repo`'
+  #   required: true
 
 permissions:
   contents: read
@@ -39,3 +44,30 @@ runs:
         generateReleaseNotes: true
         skipIfReleaseExists: true
         makeLatest: true
+
+    - name: Assume AWS management account role
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::865076270365:role/github-ci-slack-webhook-url-read-role
+        aws-region: eu-west-1
+        role-session-name: "GitHubActions-DeployLayerStack"
+        unset-current-credentials: true
+    
+    - name: Read Slack Webhook URL AWS Secret value
+      run: |
+        SLACK_WEBHOOK_URL=$(aws secretsmanager get-secret-value --secret-id arn:aws:secretsmanager:eu-west-1:865076270365:secret:SlackGithubActionsWebhookURL-vZcXfi --query SecretString --output text)
+        echo "SLACK_WEBHOOK_URL=$SLACK_WEBHOOK_URL" >> $GITHUB_OUTPUT
+      shell: bash
+  
+    # - name: Read GitHub Release Changelog via GH CLI
+    #   run: |
+    #   GH_RELEASE_NOTES=$(gh release view ${{ github.event.release.tag_name }} --json body --repo ${{ inputs.repositoryName }} --jq '.body')
+    #   echo "GH_RELEASE_NOTES=$GH_RELEASE_NOTES" >> $GITHUB_ENV
+    #   shell: bash
+
+    # - name: Sending Slack notification
+    #   run: |
+    #     curl -X POST -H 'Content-type: application/json' --data '{"text": "New Release: ${{ github.event.release.tag_name }}\n\n${{ env.GH_RELEASE_NOTES }}"}' $SLACK_WEBHOOK_URL
+    #   shell: bash
+    #   env:
+    #       SLACK_WEBHOOK_URL: ${{ env.MGMT_SLACK_WEBHOOK_URL }}
