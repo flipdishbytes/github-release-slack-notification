@@ -6,9 +6,6 @@ inputs:
     required: true
   # COMMAND:
   #   required: true
-  # repositoryName:
-  #   description: 'Repository name in the format of `owner/repo`'
-  #   required: true
 
 permissions:
   contents: read
@@ -60,11 +57,12 @@ runs:
         echo "webhook_url=$SLACK_WEBHOOK_URL" >> $GITHUB_OUTPUT
       shell: bash
   
-    # - name: Read GitHub Release Changelog via GH CLI
-    #   run: |
-    #   GH_RELEASE_NOTES=$(gh release view ${{ github.event.release.tag_name }} --json body --repo ${{ inputs.repositoryName }} --jq '.body')
-    #   echo "GH_RELEASE_NOTES=$GH_RELEASE_NOTES" >> $GITHUB_ENV
-    #   shell: bash
+    - name: Read GitHub Release Changelog via GH CLI
+      id: release_notes
+      run: |
+        GH_RELEASE_NOTES=$(gh release view ${{ github.event.release.tag_name }} --json body --repo ${{ github.github.repository }} --jq '.body')
+        echo "GH_RELEASE_NOTES=$GH_RELEASE_NOTES" >> $GITHUB_OUTPUT
+      shell: bash
 
     - name: Sending Slack notification
       shell: pwsh
@@ -76,21 +74,24 @@ runs:
           Install-Module -Name PSSlack -Force
         }
         $messageTextVersion = $env:Version
-        $messageTextDone = "Changelog: $env:GH_RELEASE_NOTES"
+        $messageTextDone = "Changelog: $env:releaseNotes"
         $channel = $env:SlackChannel
         $slack_webhook_url_secret = $env:SlackWebhookUrl
 
         New-SlackMessageAttachment -Color '#008000' `
               -Title "$env:ProjectName ($messageTextVersion) - Successfuly Released" `
-              -TitleLink "$env:pipelineUrl" `
+              -AuthorName "GitHub Actions" `
+              -AuthorIcon "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" `
+              -TitleLink "https://$env:workflowRef" `
               -Text "$messageTextDone" `
               -Fallback "Release completed" | New-SlackMessage -Channel $channel | Send-SlackMessage -Uri $slack_webhook_url_secret
       env: 
         SlackWebhookUrl: ${{ steps.slack_webhook_url.outputs.webhook_url }}
         SlackChannel: 'test-alerts'
         ProjectName: ${{ inputs.projectName }}
-        pipelineUrl: ${{ github.run_url }}
+        workflowRef: ${{ github.workflow_ref }}
         Version: ${{ steps.release_version.outputs.version }}
+        releaseNotes: ${{ steps.release_notes.outputs.GH_RELEASE_NOTES }}
 
     # - name: Sending Slack notification
     #   run: |
