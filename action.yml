@@ -1,0 +1,41 @@
+name: 'Github Release'
+description: 'Creates Github Release'
+inputs:
+  projectName:
+    description: 'Name of the project'
+    required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set version name
+      id: set_version
+      shell: pwsh
+      run: |
+        $branchName = $env:BranchName
+        $shortHash = "$env:SHA".Substring(0, 7)
+        $dateTime = Get-Date -Format "yyyy.MM.dd" 
+        $versionName = "$branchName.$dateTime.$env:Rev.$shortHash"
+        Write-Host "Version Name: $versionName"
+        "version=$versionName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+      env:
+        BranchName: ${{ github.ref_name }}
+        Date: ${{ github.event.head_commit.timestamp }}
+        Rev: ${{ github.run_number }}
+        SHA: ${{ github.sha }}
+
+    - name: GitHub Release
+      uses: ncipollo/release-action@v1
+      with:
+        tag: ${{ steps.set_version.outputs.version }}
+        name: Release ${{ steps.set_version.outputs.version }}
+        commit: ${{ github.sha }}
+        draft: false
+        prerelease: false
+        generateReleaseNotes: true
+        skipIfReleaseExists: true
+        makeLatest: true
