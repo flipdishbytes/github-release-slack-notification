@@ -66,20 +66,37 @@ runs:
         echo "webhook_url=$SLACK_WEBHOOK_URL" >> $GITHUB_OUTPUT
       shell: bash
   
-    - name: Read GitHub Release Changelog via GH CLI
-      if: ${{ inputs.sendSlackNotification == 'true' }}
-      id: release_notes
-      run: |
-        GH_RELEASE_NOTES=$(gh release view ${{ github.event.release.tag_name }} --json body --repo ${{ github.repository }} --jq '.body')
-        echo "GH_RELEASE_NOTES=$GH_RELEASE_NOTES" >> $GITHUB_OUTPUT
-      shell: bash
-      env:
-        GH_TOKEN: ${{ github.token }}
-
     - name: Sending Slack notification
       if: ${{ inputs.sendSlackNotification == 'true' }}
       shell: pwsh
       run: |
+        function Remove-Diacritics
+        {
+          Param(
+          [String]$inputString
+          )
+          return($sb = [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($inputString)))
+        }
+
+        $body = gh release view $env:Version --json body --repo $env:repository | ConvertFrom-Json
+        $releaseNotes = $body.body
+        $releaseNotes = Remove-Diacritics -inputString $releaseNotes
+
+        $parts = $releaseNotes -split "##"
+
+        if ($parts.count -lt 3) {
+          $messageTextDone = $releaseNotes
+        } else {
+          $WhatsChanged = $parts[1]
+          $messageTextDone = $WhatsChanged -replace "What's Changed", ""
+          $messageTextDone+= "`n`n"
+          $FullChangelogURL = $parts[2] -split "\n" | Select-Object -Last 1
+          $messageTextDone+= $FullChangelogURL
+        }
+
+        $messageTextDone = $messageTextDone.Replace('**', '')
+        $messageTextDone = $messageTextDone.Replace('*', '-')
+
         if (Get-Module -ListAvailable -Name PSSlack) {
           Write-Host "PSSlack module already Installed"
         } else {
@@ -87,7 +104,7 @@ runs:
           Install-Module -Name PSSlack -Force
         }
         $messageTextVersion = $env:Version
-        $messageTextDone = "Changelog: $env:releaseNotes"
+        $messageTextDone = "$releaseNotes"
         $channel = $env:SlackChannel
         $slack_webhook_url_secret = $env:SlackWebhookUrl
 
@@ -96,11 +113,11 @@ runs:
               -TitleLink "https://github.com/$env:repository/actions/runs/$env:runId" `
               -Text "$messageTextDone" `
               -Fallback "Release completed" | New-SlackMessage -Channel $channel | Send-SlackMessage -Uri $slack_webhook_url_secret
-      env: 
+      env:
+        GH_TOKEN: ${{ github.token }}
         SlackWebhookUrl: ${{ steps.slack_webhook_url.outputs.webhook_url }}
         SlackChannel: ${{ inputs.slackChannel }}
         projectName: ${{ inputs.projectName }}
         runId: ${{ github.run_id }}
         repository: ${{ github.repository }}
         Version: ${{ steps.release_version.outputs.version }}
-        releaseNotes: ${{ steps.release_notes.outputs.GH_RELEASE_NOTES }}
