@@ -62,3 +62,11 @@ jobs:
         continue-on-error: true
 
 ```
+
+- name: GitHub Release and Notification
+  uses: flipdishbytes/github-release-slack-notification@v1.1
+  with:
+    projectName: 'Template'
+    sendSlackNotification: true
+    slackChannel: 'test-notifications'
+  continue-on-error: true
