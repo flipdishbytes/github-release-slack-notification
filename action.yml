@@ -104,7 +104,6 @@ runs:
           Install-Module -Name PSSlack -Force
         }
         $messageTextVersion = $env:Version
-        $messageTextDone = "$releaseNotes"
         $channel = $env:SlackChannel
         $slack_webhook_url_secret = $env:SlackWebhookUrl
 
