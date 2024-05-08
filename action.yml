@@ -41,7 +41,7 @@ runs:
       uses: ncipollo/release-action@v1
       with:
         tag: ${{ steps.release_version.outputs.version }}
-        name: Release ${{ steps.release_version.outputs.version }}
+        name: ${{ inputs.projectName }} ${{ steps.release_version.outputs.version }}
         commit: ${{ github.sha }}
         draft: false
         prerelease: false
@@ -93,14 +93,14 @@ runs:
         $slack_webhook_url_secret = $env:SlackWebhookUrl
 
         New-SlackMessageAttachment -Color '#008000' `
-              -Title "$env:ProjectName ($messageTextVersion) - Successfuly Released" `
+              -Title "$env:projectName ($messageTextVersion) - Successfuly Released" `
               -TitleLink "https://github.com/$env:repository/actions/runs/$env:runId" `
               -Text "$messageTextDone" `
               -Fallback "Release completed" | New-SlackMessage -Channel $channel | Send-SlackMessage -Uri $slack_webhook_url_secret
       env: 
         SlackWebhookUrl: ${{ steps.slack_webhook_url.outputs.webhook_url }}
         SlackChannel: ${{ inputs.slackChannel }}
-        ProjectName: ${{ inputs.projectName }}
+        projectName: ${{ inputs.projectName }}
         runId: ${{ github.run_id }}
         repository: ${{ github.repository }}
         Version: ${{ steps.release_version.outputs.version }}

@@ -8,7 +8,9 @@ To use this Datadog CI action, add it to your pipeline workflow YAML file. Here 
 
 ### How it works?
 
+1. Creates version with the format like 
 1. Reads `SlackWebhookURL` AWS Secret using aws cli (preinstalled on all GitHub agents) and using it for sending slack webhooks.
+
 
 **There is `SlackWebhookURL` secret stored at AWS SSM in Flipdish Management account and separate role created for GitHub Actions which can be assumed only by Flipdish Org GitHub Actions repositories and has IAM permissions only for getting this secret value.**
 
@@ -43,5 +45,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: GitHub Release and Notification
+        uses: flipdishbytes/github-release-slack-notification@v1.1
+        with:
+          projectName: 'Template'
+          sendSlackNotification: true
+          slackChannel: 'test-notifications'
 
 ```
