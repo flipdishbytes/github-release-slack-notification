@@ -59,5 +59,6 @@ jobs:
           projectName: 'Template'
           sendSlackNotification: true
           slackChannel: 'test-notifications'
+        continue-on-error: true
 
 ```
