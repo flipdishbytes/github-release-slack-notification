@@ -94,7 +94,7 @@ runs:
 
         New-SlackMessageAttachment -Color '#008000' `
               -Title "$env:ProjectName ($messageTextVersion) - Successfuly Released" `
-              -TitleLink https://github.com/$env:repository/actions/runs/$env:runId " `
+              -TitleLink "https://github.com/$env:repository/actions/runs/$env:runId" `
               -Text "$messageTextDone" `
               -Fallback "Release completed" | New-SlackMessage -Channel $channel | Send-SlackMessage -Uri $slack_webhook_url_secret
       env: 
