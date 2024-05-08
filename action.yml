@@ -4,8 +4,15 @@ inputs:
   projectName:
     description: 'Name of the project'
     required: true
-  # COMMAND:
-  #   required: true
+  sendSlackNotification:
+    description: 'Send Slack Notification'
+    required: false
+    type: boolean
+    default: true
+  slackChannel:
+    description: 'Slack Channel to send the notification'
+    required: false
+    default: 'production_releases'
 
 permissions:
   contents: read
@@ -43,6 +50,7 @@ runs:
         makeLatest: true
 
     - name: Assume AWS management account role
+      if: ${{ inputs.sendSlackNotification }}
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: arn:aws:iam::865076270365:role/github-ci-slack-webhook-url-read-role
@@ -51,13 +59,16 @@ runs:
         unset-current-credentials: true
     
     - name: Read Slack Webhook URL AWS Secret value
+      if: ${{ inputs.sendSlackNotification }}
       id: slack_webhook_url
       run: |
         SLACK_WEBHOOK_URL=$(aws secretsmanager get-secret-value --secret-id arn:aws:secretsmanager:eu-west-1:865076270365:secret:SlackGithubActionsWebhookURL-vZcXfi --query SecretString --output text)
+        echo "::add-mask::$SLACK_WEBHOOK_URL"
         echo "webhook_url=$SLACK_WEBHOOK_URL" >> $GITHUB_OUTPUT
       shell: bash
   
     - name: Read GitHub Release Changelog via GH CLI
+      if: ${{ inputs.sendSlackNotification }}
       id: release_notes
       run: |
         GH_RELEASE_NOTES=$(gh release view ${{ github.event.release.tag_name }} --json body --repo ${{ github.repository }} --jq '.body')
@@ -67,6 +78,7 @@ runs:
         GH_TOKEN: ${{ github.token }}
 
     - name: Sending Slack notification
+      if: ${{ inputs.sendSlackNotification }}
       shell: pwsh
       run: |
         if (Get-Module -ListAvailable -Name PSSlack) {
@@ -82,22 +94,14 @@ runs:
 
         New-SlackMessageAttachment -Color '#008000' `
               -Title "$env:ProjectName ($messageTextVersion) - Successfuly Released" `
-              -AuthorName "GitHub Actions" `
-              -AuthorIcon "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" `
-              -TitleLink "https://$env:workflowRef" `
+              -TitleLink https://github.com/$env:repository/actions/runs/$env:runId " `
               -Text "$messageTextDone" `
               -Fallback "Release completed" | New-SlackMessage -Channel $channel | Send-SlackMessage -Uri $slack_webhook_url_secret
       env: 
         SlackWebhookUrl: ${{ steps.slack_webhook_url.outputs.webhook_url }}
-        SlackChannel: 'test-alerts'
+        SlackChannel: ${{ inputs.slackChannel }}
         ProjectName: ${{ inputs.projectName }}
-        workflowRef: ${{ github.workflow_ref }}
+        runId: ${{ github.run_id }}
+        repository: ${{ github.repository }}
         Version: ${{ steps.release_version.outputs.version }}
         releaseNotes: ${{ steps.release_notes.outputs.GH_RELEASE_NOTES }}
-
-    # - name: Sending Slack notification
-    #   run: |
-    #     curl -X POST -H 'Content-type: application/json' --data '{"text": "New Release: ${{ github.event.release.tag_name }}\n\n${{ env.GH_RELEASE_NOTES }}"}' $SLACK_WEBHOOK_URL
-    #   shell: bash
-    #   env:
-    #       SLACK_WEBHOOK_URL: ${{ env.MGMT_SLACK_WEBHOOK_URL }}
