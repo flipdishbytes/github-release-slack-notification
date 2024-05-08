@@ -7,8 +7,7 @@ inputs:
   sendSlackNotification:
     description: 'Send Slack Notification'
     required: false
-    type: boolean
-    default: true
+    default: 'true'
   slackChannel:
     description: 'Slack Channel to send the notification'
     required: false
