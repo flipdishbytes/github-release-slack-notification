@@ -85,11 +85,11 @@ runs:
         $parts = $releaseNotes -split "##"
 
         if ($parts.count -lt 3) {
-          $messageTextDone = $releaseNotes
+          $messageTextDone = $releaseNotes -replace "## What's Changed", ""
         } else {
           $WhatsChanged = $parts[1]
           $messageTextDone = $WhatsChanged -replace "What's Changed", ""
-          $messageTextDone+= "`n`n"
+          $messageTextDone+= "`n"
           $FullChangelogURL = $parts[2] -split "\n" | Select-Object -Last 1
           $messageTextDone+= $FullChangelogURL
         }
