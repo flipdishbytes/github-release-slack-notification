@@ -79,7 +79,7 @@ runs:
         echo "webhook_url=$SLACK_WEBHOOK_URL" >> $GITHUB_OUTPUT
       shell: bash
 
-     - name: Sending notification to Slack
+    - name: Sending notification to Slack
       if: ${{ inputs.sendSlackNotification == 'true' }}
       shell: pwsh
       run: |
