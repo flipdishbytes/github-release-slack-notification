@@ -20,6 +20,9 @@ inputs:
     description: 'Send Rollback Started Slack Notification'
     required: false
     default: 'false'
+  versionRollbackTo:
+    description: 'Version Rollback to'
+    required: false
 
 permissions:
   contents: read
@@ -97,16 +100,22 @@ runs:
 
         $RollbackStarted = $env:RollbackStarted
         $RollbackCompleted = $env:RollbackCompleted
+        $versionRollbackTo = $env:versionRollbackTo
 
         if (($RollbackStarted -eq "true") -or ($RollbackCompleted -eq "true")) {
-          $ghReleasesTags = gh release list --limit 2 --exclude-drafts --exclude-pre-releases --json tagName --repo $env:repository | ConvertFrom-Json
-          $latestReleaseTag = $ghReleasesTags[0].tagName
-          $previousReleaseTag = $ghReleasesTags[1].tagName
-    
-          if ($ghReleasesTags.count -ne 2) {
-            Write-Error "There are not enough releases to compare"
-           exit 1
-         } 
+          if ($null -eq $versionRollbackTo) {
+              Write-Error "versionRollbackTo to is not provided. Exiting..."
+              exit 1
+          }
+
+          $ghReleasesTags = gh release list --limit 15 --exclude-drafts --exclude-pre-releases --json tagName,isLatest --repo $env:repository | ConvertFrom-Json
+          $latestReleaseTag = $ghReleasesTags | Where-Object { $_.isLatest -eq $true } | Select-Object -ExpandProperty tagName
+
+          if ($versionRollbackTo -eq $latestReleaseTag) {
+              Write-Error "Cannot rollback to the same release. Exiting..."
+              exit 1
+          }
+          $previousReleaseTag = $versionRollbackTo
     
           Write-Host "Latest Release Tag: $latestReleaseTag"
           Write-Host "Previous Release Tag: $previousReleaseTag"
@@ -158,3 +167,4 @@ runs:
         RollbackStarted: ${{ inputs.sendRollbackStartedSlackNotification }}
         RollbackCompleted: ${{ inputs.sendRollbackCompletedSlackNotification }}
         Version: ${{ steps.release_version.outputs.version }}
+        versionRollbackTo: ${{ inputs.versionRollbackTo }}
