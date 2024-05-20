@@ -12,6 +12,14 @@ inputs:
     description: 'Slack Channel to send the notification'
     required: false
     default: 'production_releases'
+  sendRollbackStartedSlackNotification:
+    description: 'Send Rollback Started Slack Notification'
+    required: false
+    default: 'false'
+  sendRollbackCompletedSlackNotification:
+    description: 'Send Rollback Started Slack Notification'
+    required: false
+    default: 'false'
 
 permissions:
   contents: read
@@ -20,7 +28,8 @@ permissions:
 runs:
   using: "composite"
   steps:
-    - name: Set version name
+    - name: Set new version name
+      if: ${{ inputs.sendRollbackStartedSlackNotification != 'true' && inputs.sendRollbackCompletedSlackNotification != 'true'}}
       id: release_version
       shell: pwsh
       run: |
@@ -36,7 +45,8 @@ runs:
         Rev: ${{ github.run_number }}
         SHA: ${{ github.sha }}
 
-    - name: GitHub Release
+    - name: Create GitHub Release
+      if: ${{ inputs.sendRollbackStartedSlackNotification != 'true' && inputs.sendRollbackCompletedSlackNotification != 'true'}}
       uses: ncipollo/release-action@v1
       with:
         tag: ${{ steps.release_version.outputs.version }}
@@ -57,7 +67,7 @@ runs:
         role-session-name: "GitHubActions-DeployLayerStack"
         unset-current-credentials: true
     
-    - name: Read Slack Webhook URL AWS Secret value
+    - name: Read SlackWebhookUrl AWS Secret value
       if: ${{ inputs.sendSlackNotification == 'true' }}
       id: slack_webhook_url
       run: |
@@ -65,8 +75,8 @@ runs:
         echo "::add-mask::$SLACK_WEBHOOK_URL"
         echo "webhook_url=$SLACK_WEBHOOK_URL" >> $GITHUB_OUTPUT
       shell: bash
-  
-    - name: Sending Slack notification
+
+     - name: Sending notification to Slack
       if: ${{ inputs.sendSlackNotification == 'true' }}
       shell: pwsh
       run: |
@@ -78,40 +88,66 @@ runs:
           return($sb = [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($inputString)))
         }
 
-        $body = gh release view $env:Version --json body --repo $env:repository | ConvertFrom-Json
-        $releaseNotes = $body.body
-        $releaseNotes = Remove-Diacritics -inputString $releaseNotes
-
-        $parts = $releaseNotes -split "##"
-
-        if ($parts.count -lt 3) {
-          $messageTextDone = $releaseNotes -replace "## What's Changed", ""
-        } else {
-          $WhatsChanged = $parts[1]
-          $messageTextDone = $WhatsChanged -replace "What's Changed", ""
-          $messageTextDone+= "`n"
-          $FullChangelogURL = $parts[2] -split "\n" | Select-Object -Last 1
-          $messageTextDone+= $FullChangelogURL
-        }
-
-        $messageTextDone = $messageTextDone.Replace('**', '')
-        $messageTextDone = $messageTextDone.Replace('*', '-')
-
         if (Get-Module -ListAvailable -Name PSSlack) {
           Write-Host "PSSlack module already Installed"
         } else {
           Write-Host "Installing PSSlack module"
           Install-Module -Name PSSlack -Force
         }
-        $messageTextVersion = $env:Version
+
+        $RollbackStarted = $env:RollbackStarted
+        $RollbackCompleted = $env:RollbackCompleted
+
+        if (($RollbackStarted -eq "true") -or ($RollbackCompleted -eq "true")) {
+          $ghReleasesTags = gh release list --limit 2 --exclude-drafts --exclude-pre-releases --json tagName --repo $env:repository | ConvertFrom-Json
+          $latestReleaseTag = $ghReleasesTags[0].tagName
+          $previousReleaseTag = $ghReleasesTags[1].tagName
+    
+          if ($ghReleasesTags.count -ne 2) {
+            Write-Error "There are not enough releases to compare"
+           exit 1
+         } 
+    
+          Write-Host "Latest Release Tag: $latestReleaseTag"
+          Write-Host "Previous Release Tag: $previousReleaseTag"
+        } else {
+          $body = gh release view $env:Version --json body --repo $env:repository | ConvertFrom-Json
+          $releaseNotes = $body.body
+          $releaseNotes = Remove-Diacritics -inputString $releaseNotes
+        }
+
+        if ($RollbackStarted -eq "true") {
+          $titleText = "$env:projectName ($latestReleaseTag) - Rollback In Progress"
+          $messageText = "Previous version: " + $previousReleaseTag
+        } elseif ($RollbackCompleted -eq "true") {
+          $titleText = "$env:projectName ($latestReleaseTag) - Rollback Completed"
+          $messageText = "Previous version: " + $previousReleaseTag
+        } else {
+          $titleText = "$env:projectName ($env:Version) - Successfully Released"
+          $parts = $releaseNotes -split "##"
+
+          if ($parts.count -lt 3) {
+            $messageText = $releaseNotes -replace "## What's Changed", ""
+          } else {
+            $WhatsChanged = $parts[1]
+            $messageText = $WhatsChanged -replace "What's Changed", ""
+            $messageText+= "`n"
+            $FullChangelogURL = $parts[2] -split "\n" | Select-Object -Last 1
+            $messageText+= $FullChangelogURL
+          }
+
+          $messageText = $messageText.Replace('**', '')
+          $messageText = $messageText.Replace('*', '-')
+        }
+
         $channel = $env:SlackChannel
         $slack_webhook_url_secret = $env:SlackWebhookUrl
 
         New-SlackMessageAttachment -Color '#008000' `
-              -Title "$env:projectName ($messageTextVersion) - Successfully Released" `
-              -TitleLink "https://github.com/$env:repository/actions/runs/$env:runId" `
-              -Text "$messageTextDone" `
-              -Fallback "Release completed" | New-SlackMessage -Channel $channel | Send-SlackMessage -Uri $slack_webhook_url_secret
+          -Title "$titleText" `
+          -TitleLink "https://github.com/$env:repository/actions/runs/$env:runId" `
+          -Text "$messageText" `
+          -Fallback "Slack Notification" | New-SlackMessage -Channel $channel | Send-SlackMessage -Uri $slack_webhook_url_secret
       env:
         GH_TOKEN: ${{ github.token }}
         SlackWebhookUrl: ${{ steps.slack_webhook_url.outputs.webhook_url }}
@@ -119,4 +155,6 @@ runs:
         projectName: ${{ inputs.projectName }}
         runId: ${{ github.run_id }}
         repository: ${{ github.repository }}
+        RollbackStarted: ${{ inputs.sendRollbackStartedSlackNotification }}
+        RollbackCompleted: ${{ inputs.sendRollbackCompletedSlackNotification }}
         Version: ${{ steps.release_version.outputs.version }}
