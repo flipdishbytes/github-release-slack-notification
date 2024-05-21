@@ -2,9 +2,9 @@
 
 This custom GitHub Action were created to integrate GitHub Actions releases and Slack Notifications. It allows you to send slack notifications after release is done.
 
-# Github Action: Datadog CI `flipdishbytes/github-release-slack-notification@v1.1`
+# Github Action: GitHub Release and Slack Notifications `flipdishbytes/github-release-slack-notification@v1.1`
 
-To use this Datadog CI action, add it to your pipeline workflow YAML file. Here are examples of adding traces to the pipeline depending on your needs.
+To use this action, add it to your pipeline workflow YAML file. Here are examples.
 
 ### How it works?
 
