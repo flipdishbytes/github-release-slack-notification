@@ -114,11 +114,23 @@ runs:
         }
 
         if ($RollbackStarted -eq "true") {
-          $titleText = "$env:projectName ($latestReleaseTag) - Rollback In Progress"
-          $messageText = "Previous version: " + $previousReleaseTag
+          if ($latestReleaseTag -eq $latestReleaseTag) {
+            $titleText = "$env:projectName ($latestReleaseTag) - Release In Progress"
+            $messageText = "Releasing the same version: " + $previousReleaseTag
+          } else { 
+            $titleText = "$env:projectName ($latestReleaseTag) - Rollback In Progress"
+            $messageText = "Previous version: " + $previousReleaseTag
+          } 
         } elseif ($RollbackCompleted -eq "true") {
-          $titleText = "$env:projectName ($latestReleaseTag) - Rollback Completed"
-          $messageText = "Previous version: " + $previousReleaseTag
+          if ($latestReleaseTag -eq $latestReleaseTag) {
+            $titleText = "$env:projectName ($latestReleaseTag) - Release In Progress"
+            $messageText = "No changelist attached."
+          } else {
+            $titleText = "$env:projectName ($latestReleaseTag) - Rollback Completed"
+            $messageText = "Previous version: " + $previousReleaseTag
+
+            gh release edit --latest "$previousReleaseTag" --repo $env:repository
+          }
         } else {
           $titleText = "$env:projectName ($env:Version) - Successfully Released"
           $parts = $releaseNotes -split "##"
