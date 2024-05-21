@@ -114,7 +114,7 @@ runs:
         }
 
         if ($RollbackStarted -eq "true") {
-          if ($latestReleaseTag -eq $latestReleaseTag) {
+          if ($latestReleaseTag -eq $previousReleaseTag) {
             $titleText = "$env:projectName ($latestReleaseTag) - Release In Progress"
             $messageText = "Releasing the same version: " + $previousReleaseTag
           } else { 
@@ -122,7 +122,7 @@ runs:
             $messageText = "Previous version: " + $previousReleaseTag
           } 
         } elseif ($RollbackCompleted -eq "true") {
-          if ($latestReleaseTag -eq $latestReleaseTag) {
+          if ($latestReleaseTag -eq $previousReleaseTag) {
             $titleText = "$env:projectName ($latestReleaseTag) - Release In Progress"
             $messageText = "No changelist attached."
           } else {
