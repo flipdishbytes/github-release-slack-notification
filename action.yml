@@ -91,13 +91,6 @@ runs:
           return($sb = [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($inputString)))
         }
 
-        if (Get-Module -ListAvailable -Name PSSlack) {
-          Write-Host "PSSlack module already Installed"
-        } else {
-          Write-Host "Installing PSSlack module"
-          Install-Module -Name PSSlack -Force
-        }
-
         $RollbackStarted = $env:RollbackStarted
         $RollbackCompleted = $env:RollbackCompleted
         $versionRollbackTo = $env:versionRollbackTo
@@ -110,11 +103,6 @@ runs:
 
           $ghReleasesTags = gh release list --limit 15 --exclude-drafts --exclude-pre-releases --json tagName,isLatest --repo $env:repository | ConvertFrom-Json
           $latestReleaseTag = $ghReleasesTags | Where-Object { $_.isLatest -eq $true } | Select-Object -ExpandProperty tagName
-
-          if ($versionRollbackTo -eq $latestReleaseTag) {
-              Write-Error "Cannot rollback to the same release. Exiting..."
-              exit 1
-          }
           $previousReleaseTag = $versionRollbackTo
     
           Write-Host "Latest Release Tag: $latestReleaseTag"
@@ -149,14 +137,21 @@ runs:
           $messageText = $messageText.Replace('*', '-')
         }
 
-        $channel = $env:SlackChannel
-        $slack_webhook_url_secret = $env:SlackWebhookUrl
+        $payload = @{
+          channel = $env:SlackChannel
+          attachments = @(
+            @{
+              color = "#008000"
+              title = $titleText
+              title_link = "https://github.com/$env:repository/actions/runs/$env:runId"
+              text = $messageText
+              fallback = "Slack Notification"
+            }
+          )
+        }
 
-        New-SlackMessageAttachment -Color '#008000' `
-          -Title "$titleText" `
-          -TitleLink "https://github.com/$env:repository/actions/runs/$env:runId" `
-          -Text "$messageText" `
-          -Fallback "Slack Notification" | New-SlackMessage -Channel $channel | Send-SlackMessage -Uri $slack_webhook_url_secret
+        $jsonPayload = $payload | ConvertTo-Json
+        Invoke-RestMethod -Uri $env:SlackWebhookUrl -Method Post -Body $jsonPayload -ContentType "application/json"
       env:
         GH_TOKEN: ${{ github.token }}
         SlackWebhookUrl: ${{ steps.slack_webhook_url.outputs.webhook_url }}
