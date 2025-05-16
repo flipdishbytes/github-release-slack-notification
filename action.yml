@@ -62,7 +62,7 @@ runs:
         makeLatest: true
 
     - name: Assume AWS management account role
-      if: ${{ inputs.sendSlackNotification == 'true' }}
+      if: ${{ inputs.sendSlackNotification == 'true' && github.actor != 'renovate[bot]' }}
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: arn:aws:iam::865076270365:role/github-ci-slack-webhook-url-read-role
@@ -71,7 +71,7 @@ runs:
         unset-current-credentials: true
     
     - name: Read SlackWebhookUrl AWS Secret value
-      if: ${{ inputs.sendSlackNotification == 'true' }}
+      if: ${{ inputs.sendSlackNotification == 'true' && github.actor != 'renovate[bot]' }}
       id: slack_webhook_url
       run: |
         SLACK_WEBHOOK_URL=$(aws secretsmanager get-secret-value --secret-id arn:aws:secretsmanager:eu-west-1:865076270365:secret:SlackGithubActionsWebhookURL-vZcXfi --query SecretString --output text)
@@ -80,7 +80,7 @@ runs:
       shell: bash
 
     - name: Sending notification to Slack
-      if: ${{ inputs.sendSlackNotification == 'true' }}
+      if: ${{ inputs.sendSlackNotification == 'true' && github.actor != 'renovate[bot]' }}
       shell: pwsh
       run: |
         function Remove-Diacritics
